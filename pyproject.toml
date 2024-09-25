@@ -1,0 +1,87 @@
+[project]
+name = "monads"
+version = "0.1.0"
+description = "Rust-like option & result monads, in python flavor."
+authors = [
+    {name = "Eneg", email = "42005170+Enegg@users.noreply.github.com"},
+]
+dependencies = [
+    "typing-extensions>=4.12.2",
+    "attrs>=24.2.0",
+    "anyio>=4.6.0",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+lint = [
+    "ruff >= 0.6.7",
+]
+
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+preview = true
+explicit-preview-rules = true
+
+select = [
+    "ALL",
+
+    # preview
+    "RUF022", # sort __all__
+]
+ignore = [
+    "ARG",       # unused parameters
+    "COM812",    # don't require commas
+    "D1",        # missing docstrings
+    "FIX", "TD", # todos
+    "N818",      # naming exceptions as *Error
+    "SLF001",    # private member access; handled by pyright
+    "PYI041",    # redundant int | float unions
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+split-on-trailing-comma = false
+extra-standard-library = ["typing_extensions"]
+
+[tool.ruff.lint.flake8-type-checking]
+exempt-modules = ["typing", "typing_extensions"]
+
+[tool.ruff.lint.pylint]
+allow-dunder-method-names = [
+    "__attrs_pre_init__ ",
+    "__attrs_post_init__",
+    "__attrs_init__",
+]
+
+
+[tool.pyright]
+exclude = ["dev"]
+pythonVersion = "3.10"
+
+typeCheckingMode = "strict"
+
+reportMissingTypeStubs = false
+reportImportCycles = true
+
+reportUnnecessaryTypeIgnoreComment = "information"
+reportUnnecessaryIsInstance = "information"
+
+reportMatchNotExhaustive = "warning"
+reportOverlappingOverload = "information"
