@@ -7,12 +7,12 @@ from typing_extensions import Never, Self, override
 import attrs
 
 from monads.exceptions import UnwrapError
-from monads.types import D, E, ExcT, F, Factory, P, Predicate, T, U
+from monads.types import D, E, F, Factory, Predicate, T, U
 
 if TYPE_CHECKING:
     from monads.option import Null, Option, Some
 
-__all__ = ("Err", "Ok", "Result", "try_result")
+__all__ = ("Err", "Ok", "Result")
 
 
 class _Result(Protocol[T, E]):
@@ -219,17 +219,3 @@ class Err(_Result[Never, E]):
 
 
 Result: TypeAlias = Ok[T] | Err[E]
-
-
-def try_result(
-    f: abc.Callable[P, T],
-    exc: type[ExcT] | tuple[type[ExcT], ...],
-    /,
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> Result[T, ExcT]:
-    try:
-        return Ok(f(*args, **kwargs))
-
-    except exc as err:
-        return Err(err)

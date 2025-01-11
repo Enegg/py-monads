@@ -1,14 +1,13 @@
 [project]
+dynamic = ["version"]
 name = "monads"
-version = "0.1.0"
 description = "Rust-like option & result monads, in python flavor."
 authors = [
     {name = "Eneg", email = "42005170+Enegg@users.noreply.github.com"},
 ]
 dependencies = [
-    "typing-extensions>=4.12.2",
-    "attrs>=24.2.0",
-    "anyio>=4.6.0",
+    "attrs >= 24.2.0",
+    "typing-extensions >= 4.12.2",
 ]
 requires-python = ">=3.10"
 readme = "README.md"
@@ -26,6 +25,13 @@ distribution = true
 lint = [
     "ruff >= 0.6.7",
 ]
+
+[tool.pdm.build]
+includes = ["src/monads"]
+
+[tool.pdm.version]
+source = "file"
+path = "src/monads/__init__.py"
 
 
 [tool.ruff]

@@ -8,7 +8,7 @@ from typing_extensions import Never, Self, override
 import attrs
 
 from monads.exceptions import UnwrapError
-from monads.types import D, E, Factory, P, Predicate, T, U
+from monads.types import D, E, Factory, Predicate, T, U
 
 if TYPE_CHECKING:
     from monads.result import Err, Ok, Result
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 else:
     from typing import Generic
 
-__all__ = ("Null", "Option", "Some", "from_none", "try_option")
+__all__ = ("Null", "Option", "Some")
 
 
 class _Option(Protocol[T]):
@@ -203,30 +203,3 @@ class Null(_Option[Never] if TYPE_CHECKING else Generic[T], Enum):
 
 
 Option: TypeAlias = Some[T] | Null
-
-
-@overload
-def from_none(obj: None, /) -> Null: ...
-@overload
-def from_none(obj: T | None, /) -> Option[T]: ...
-def from_none(obj: T | None, /) -> Option[T]:
-    """Turn `T | None` into `Option[T]`."""
-    if obj is None:
-        return Null.null
-
-    return Some(obj)
-
-
-def try_option(
-    f: abc.Callable[P, T],
-    exc: type[BaseException] | tuple[type[BaseException], ...],
-    /,
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> Option[T]:
-    """Run callable `(...) -> T`, return `Some(T)` on success, or `Null` on exception."""
-    try:
-        return Some(f(*args, **kwargs))
-
-    except exc:
-        return Null.null
