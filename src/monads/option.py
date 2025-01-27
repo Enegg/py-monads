@@ -132,6 +132,9 @@ class Null(_Option[Never] if TYPE_CHECKING else Generic[T], Enum):
     __slots__ = ()
     null = None
 
+    def __repr__(self) -> str:
+        return "Null.null"
+
     @override
     def is_some_and(self, f: Predicate[Never], /) -> bool:
         return False
