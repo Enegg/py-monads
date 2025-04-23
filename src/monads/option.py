@@ -1,208 +1,240 @@
-# pyright: reportImportCycles=false
+"""Optional values.
+
+Copyright (c) 2024-present Eneg
+"""
 
 from collections import abc
-from enum import Enum
-from typing import TYPE_CHECKING, Final, Literal, Protocol, TypeAlias, final, overload
-from typing_extensions import Never, Self, override
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Final,
+    Generic,
+    Literal,
+    Never,
+    Self,
+    TypeVar,
+    final,
+    overload,
+    override,
+)
 
 import attrs
 
+from monads._types import Factory, Predicate, SupportsGe, SupportsGt, SupportsLe, SupportsLt
 from monads.exceptions import UnwrapError
-from monads.types import D, E, Factory, Predicate, T, U
 
 if TYPE_CHECKING:
-    from monads.result import Err, Ok, Result
-
-else:
-    from typing import Generic
+    from monads.result import Err, Ok
 
 __all__ = ("Null", "Option", "Some")
 
-
-class _Option(Protocol[T]):
-    __slots__ = ()
-
-    # o.is_some() => o
-    # o.is_null() => not o
-    # o.is_some_and(f) => o and f(o.value)
-    # o.is_none_or(f) => not o or f(o.value)
-    # o1.or_(o2) => o1 or o2
-    # o.or_else(f) => o or f()
-    # o1.and_(o2) => o1 and o2
-    # o.and_then(f) => o.map_into(f)
-
-    def is_some_and(self, f: Predicate[T], /) -> bool: ...
-    def is_null_or(self, f: Predicate[T], /) -> bool: ...
-    def unwrap(self, msg: str = ...) -> T: ...
-    def unwrap_or(self, default: D, /) -> T | D: ...
-    def unwrap_or_else(self, f: Factory[D], /) -> T | D: ...
-    def map(self, f: abc.Callable[[T], U], /) -> "Option[U]": ...
-    def map_into(self, f: abc.Callable[[T], "Option[U]"], /) -> "Option[U]": ...
-    def map_or(self, f: abc.Callable[[T], U], /, default: D) -> U | D: ...
-    def map_or_else(self, f: abc.Callable[[T], U], /, default: Factory[D]) -> U | D: ...
-    def inspect(self, f: abc.Callable[[T], object], /) -> Self: ...
-    def ok_or(self, err: E, /) -> "Result[T, E]": ...
-    def ok_or_else(self, err: Factory[E], /) -> "Result[T, E]": ...
-    def xor(self, other: "Option[U]", /) -> "Self | Option[U]": ...
-    def __iter__(self) -> abc.Iterator[T]: ...
-    def __bool__(self) -> bool: ...
+type Option[T] = Some[T] | Null[T]
+T = TypeVar("T", covariant=True)
+# for some reason pyright infers invariance for Some[T], so lets force it
 
 
 @final
-@attrs.define
-class Some(_Option[T]):
+@attrs.frozen
+class Some(Generic[T]):
+    """Option variant with some value of type `T`."""
+
     value: Final[T] = attrs.field()
 
-    @override
     def is_some_and(self, f: Predicate[T], /) -> bool:
         return f(self.value)
 
-    @override
     def is_null_or(self, f: Predicate[T], /) -> bool:
         return f(self.value)
 
-    @override
     def unwrap(self, msg: str = "") -> T:
         return self.value
 
-    @override
     def unwrap_or(self, default: object, /) -> T:
         return self.value
 
-    @override
     def unwrap_or_else(self, f: Factory[object], /) -> T:
         return self.value
 
-    @override
-    def map(self, f: abc.Callable[[T], U], /) -> "Some[U]":
+    def map[U](self, f: abc.Callable[[T], U], /) -> "Some[U]":
         return Some(f(self.value))
 
-    @override
-    def map_into(self, f: abc.Callable[[T], "Option[U]"], /) -> "Option[U]":
+    def map_into[U](self, f: abc.Callable[[T], Option[U]], /) -> Option[U]:
         return f(self.value)
 
-    @override
-    def map_or(self, f: abc.Callable[[T], U], /, default: object) -> U:
+    def map_or[U](self, f: abc.Callable[[T], U], /, default: object) -> U:
         return f(self.value)
 
-    @override
-    def map_or_else(self, f: abc.Callable[[T], U], /, default: Factory[object]) -> U:
+    def map_or_else[U](self, f: abc.Callable[[T], U], /, default: Factory[object]) -> U:
         return f(self.value)
 
-    @override
     def inspect(self, f: abc.Callable[[T], object], /) -> Self:
         f(self.value)
         return self
 
-    @override
-    def ok_or(self, err: object, /) -> "Ok[T]":
+    def ok_or[E](self, err: E, /) -> "Ok[T, E]":
         from monads.result import Ok
 
         return Ok(self.value)
 
-    @override
-    def ok_or_else(self, err: Factory[object], /) -> "Ok[T]":
+    def ok_or_else[E](self, err: Factory[E], /) -> "Ok[T, E]":
         from monads.result import Ok
 
         return Ok(self.value)
 
     @overload
-    def xor(self, other: "Null", /) -> Self: ...
+    def xor(self, other: "Null[Any]", /) -> "Some[T]": ...
     @overload
-    def xor(self, other: "Some[object]", /) -> "Null": ...
-    @override
-    def xor(self, other: "Option[object]", /) -> "Option[T]":
-        if other is Null.null:
+    def xor(self, other: "Some[Any]", /) -> "Null[T]": ...
+
+    def xor(self, other: Option[Any], /) -> Option[T]:
+        if not other:
             return self
 
         return Null.null
 
-    @override
+    def flatten[O: Option[Any]](self: "Some[O]") -> O:
+        return self.value
+
     def __iter__(self) -> abc.Iterator[T]:
         yield self.value
 
-    @override
     def __bool__(self) -> Literal[True]:
         return True
 
+    def __gt__[U](self: "Some[SupportsGt[U]]", other: Option[U], /) -> bool:
+        return self.value > other.value if other else True
+
+    def __ge__[U](self: "Some[SupportsGe[U]]", other: Option[U], /) -> bool:
+        return self.value >= other.value if other else True
+
+    def __lt__[U](self: "Some[SupportsLt[U]]", other: Option[U], /) -> bool:
+        return self.value < other.value if other else False
+
+    def __le__[U](self: "Some[SupportsLe[U]]", other: Option[U], /) -> bool:
+        return self.value <= other.value if other else False
+
 
 @final
-class Null(_Option[Never] if TYPE_CHECKING else Generic[T], Enum):
-    # workaround for Protocol & Enum metaclass conflict
-    __slots__ = ()
-    null = None
+class Null[T = Never]:
+    """Option variant of no value."""
 
+    __slots__ = ()
+    null: Final["Null[Any]"]  # pyright: ignore[reportGeneralTypeIssues]
+    """Instance of `Null`."""
+
+    def __new__(cls) -> "Null[T]":
+        return cls.null
+
+    @override
     def __repr__(self) -> str:
         return "Null.null"
 
-    @override
-    def is_some_and(self, f: Predicate[Never], /) -> bool:
+    def is_some_and(self, f: Predicate[T], /) -> Literal[False]:
         return False
 
-    @override
-    def is_null_or(self, f: Predicate[Never], /) -> bool:
+    def is_null_or(self, f: Predicate[T], /) -> Literal[True]:
         return True
 
-    @override
     def unwrap(self, msg: str = "unwrap on Null") -> Never:
-        raise UnwrapError(msg) from None
+        raise UnwrapError(msg)
 
-    @override
-    def unwrap_or(self, default: D, /) -> D:
+    def unwrap_or[D](self, default: D, /) -> D:
         return default
 
-    @override
-    def unwrap_or_else(self, f: Factory[U], /) -> U:
+    def unwrap_or_else[U](self, f: Factory[U], /) -> U:
         return f()
 
-    @override
-    def map(self, f: abc.Callable[[Never], object], /) -> Self:
-        return self
+    def map[E](self, f: abc.Callable[[T], E], /) -> "Null[E]":
+        return Null.null
 
-    @override
-    def map_into(self, f: abc.Callable[[Never], "Option[object]"], /) -> Self:
-        return self
+    def map_into[E](self, f: abc.Callable[[T], Option[E]], /) -> "Null[E]":
+        return Null.null
 
-    @override
-    def map_or(self, f: abc.Callable[[Never], object], /, default: D) -> D:
+    def map_or[D](self, f: abc.Callable[[T], object], /, default: D) -> D:
         return default
 
-    @override
-    def map_or_else(self, f: abc.Callable[[Never], object], /, default: Factory[D]) -> D:
+    def map_or_else[D](self, f: abc.Callable[[T], object], /, default: Factory[D]) -> D:
         return default()
 
-    @override
-    def inspect(self, f: abc.Callable[[Never], object], /) -> Self:
+    def inspect(self, f: abc.Callable[[T], object], /) -> Self:
         return self
 
-    @override
-    def ok_or(self, err: E, /) -> "Err[E]":
+    def ok_or[E](self, err: E, /) -> "Err[E, T]":
         from monads.result import Err
 
         return Err(err)
 
-    @override
-    def ok_or_else(self, err: Factory[E], /) -> "Err[E]":
+    def ok_or_else[E](self, err: Factory[E], /) -> "Err[E, T]":
         from monads.result import Err
 
         return Err(err())
 
     @overload
-    def xor(self, other: Self, /) -> Self: ...
+    def xor[U](self, other: "Null[U]", /) -> "Null[U]": ...
     @overload
-    def xor(self, other: Some[T], /) -> Some[T]: ...
-    @override
-    def xor(self, other: "Option[T]", /) -> "Option[T]":
+    def xor[U](self, other: Some[U], /) -> Some[U]: ...
+
+    def xor[U](self, other: Option[U], /) -> Option[U]:
         return other
 
-    @override
+    def flatten[U](self: "Null[Option[U]]") -> "Null[U]":
+        return Null.null
+
     def __iter__(self) -> abc.Iterator[Never]:
         return
         yield
 
-    @override
     def __bool__(self) -> Literal[False]:
         return False
 
+    def __gt__[U](self: "Null[SupportsGt[U]]", other: Option[U], /) -> bool:
+        return False
 
-Option: TypeAlias = Some[T] | Null
+    def __ge__[U](self: "Null[SupportsGe[U]]", other: Option[U], /) -> bool:
+        return not other
+
+    def __lt__[U](self: "Null[SupportsLt[U]]", other: Option[U], /) -> bool:
+        return bool(other)
+
+    def __le__[U](self: "Null[SupportsLe[U]]", other: Option[U], /) -> bool:
+        return True
+
+
+Null.null = object.__new__(Null)  # pyright: ignore[reportAttributeAccessIssue]
+
+if False:
+    from typing import Protocol
+
+    from monads.result import Result
+
+    def assert_assignable() -> None:
+        class _Option[T](Protocol):
+            # o.is_some() => o
+            # o.is_null() => not o
+            # o1.or(o2) => o1 or o2
+            # o.or_else(f) => o or f()
+            # o1.and(o2) => o1 and o2
+            # o.and_then(f) => o.map_into(f)
+
+            def is_some_and(self, f: Predicate[T], /) -> bool: ...
+            def is_null_or(self, f: Predicate[T], /) -> bool: ...
+            def unwrap(self, msg: str = ...) -> T: ...
+            def unwrap_or[D](self, default: D, /) -> T | D: ...
+            def unwrap_or_else[D](self, f: Factory[D], /) -> T | D: ...
+            def map[U](self, f: abc.Callable[[T], U], /) -> Option[U]: ...
+            def map_into[U](self, f: abc.Callable[[T], Option[U]], /) -> Option[U]: ...
+            def map_or[U, D](self, f: abc.Callable[[T], U], /, default: D) -> U | D: ...
+            def map_or_else[U, D](
+                self, f: abc.Callable[[T], U], /, default: Factory[D]
+            ) -> U | D: ...
+            def inspect(self, f: abc.Callable[[T], object], /) -> Self: ...
+            def ok_or[E](self, err: E, /) -> Result[T, E]: ...
+            def ok_or_else[E](self, err: Factory[E], /) -> Result[T, E]: ...
+            def xor[U](self, other: Option[U], /) -> Option[T] | Option[U]: ...
+            def flatten(self: Option[Option[T]]) -> Option[T]: ...
+            def __iter__(self) -> abc.Iterator[T]: ...
+            def __bool__(self) -> bool: ...
+
+        # xor fails to assign. Too bad!
+        _1: _Option[object] = Some(object)
+        _2: _Option[object] = Null.null

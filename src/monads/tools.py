@@ -1,28 +1,31 @@
+"""Tools for converting into `Option` & `Result`.
+
+Copyright (c) 2024-present Eneg
+"""
+
 from collections import abc
-from typing import Generic, Protocol, overload
-from typing_extensions import Self
+from typing import Any, Protocol, Self, overload
 
 import attrs
 
 from monads.option import Null, Option, Some
 from monads.result import Err, Ok, Result
-from monads.types import ExcT, P, T, U
 
 __all__ = ("CatchResult", "from_none", "try_option", "try_result")
 
 
-class HasResult(Protocol[U]):
+class HasResult[T, E](Protocol):
     @property
-    def result(self) -> Ok[U]: ...
+    def result(self) -> Ok[T, E]: ...
 
 
 @attrs.frozen
-class _Success(Generic[U]):
-    result: Ok[U]
+class _Success[T]:
+    result: Ok[T]
 
 
 @attrs.define
-class CatchResult(Generic[ExcT]):
+class CatchResult[ExcT: BaseException]:
     """Context manager catching exceptions into Result type.
 
     ### Usage:
@@ -52,21 +55,22 @@ class CatchResult(Generic[ExcT]):
 
         return False
 
-    def __imatmul__(self, value: U, /) -> HasResult[U]:  # noqa: PYI034
+    def __imatmul__[U](self, value: U, /) -> HasResult[U, ExcT]:  # noqa: PYI034
         return _Success(Ok(value))
 
     @property
-    def result(self) -> Err[ExcT]:
+    def result(self) -> Err[Any, ExcT]:
         return self._result.map(Err).unwrap("No exception caught and @= not called")
 
 
-def try_result(
+def try_result[ExcT: BaseException, **P, T](
     f: abc.Callable[P, T],
     exc: type[ExcT] | tuple[type[ExcT], ...],
     /,
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> Result[T, ExcT]:
+    """Run callable `(...) -> T`, return `Ok[T]` on success, or `Err[Exception]` on exception."""
     try:
         return Ok(f(*args, **kwargs))
 
@@ -74,14 +78,14 @@ def try_result(
         return Err(err)
 
 
-def try_option(
+def try_option[**P, T](
     f: abc.Callable[P, T],
     exc: type[BaseException] | tuple[type[BaseException], ...],
     /,
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> Option[T]:
-    """Run callable `(...) -> T`, return `Some(T)` on success, or `Null` on exception."""
+    """Run callable `(...) -> T`, return `Some[T]` on success, or `Null` on exception."""
     try:
         return Some(f(*args, **kwargs))
 
@@ -92,7 +96,7 @@ def try_option(
 @overload
 def from_none(obj: None, /) -> Null: ...
 @overload
-def from_none(obj: T | None, /) -> Option[T]: ...
-def from_none(obj: T | None, /) -> Option[T]:
+def from_none[T](obj: T | None, /) -> Option[T]: ...
+def from_none[T](obj: T | None, /) -> Option[T]:
     """Turn `T | None` into `Option[T]`."""
     return Null.null if obj is None else Some(obj)

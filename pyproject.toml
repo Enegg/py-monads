@@ -1,7 +1,7 @@
 [project]
 dynamic = ["version"]
 name = "monads"
-description = "Rust-like option & result monads, in python flavor."
+description = "Python-flavored `Option` and `Result` types."
 authors = [
     {name = "Eneg", email = "42005170+Enegg@users.noreply.github.com"},
 ]
@@ -11,7 +11,7 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-license = {text = "GPL-3.0-or-later"}
+license = {file = "LICENSE"}
 
 [build-system]
 requires = ["pdm-backend"]
@@ -20,11 +20,6 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 distribution = true
-
-[tool.pdm.dev-dependencies]
-lint = [
-    "ruff >= 0.6.7",
-]
 
 [tool.pdm.build]
 includes = ["src/monads"]
@@ -36,7 +31,7 @@ path = "src/monads/__init__.py"
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py313"
 
 [tool.ruff.lint]
 preview = true
@@ -51,11 +46,14 @@ select = [
 ignore = [
     "ARG",       # unused parameters
     "COM812",    # don't require commas
+    "C9",        # complexity
     "D1",        # missing docstrings
     "FIX", "TD", # todos
     "N818",      # naming exceptions as *Error
     "SLF001",    # private member access; handled by pyright
     "PYI041",    # redundant int | float unions
+    "INP001",
+    "PLC0105",   # T_co/T_contra, don't care
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -78,16 +76,21 @@ allow-dunder-method-names = [
 
 
 [tool.pyright]
-exclude = ["dev"]
-pythonVersion = "3.10"
-
 typeCheckingMode = "strict"
+pythonVersion = "3.13"
 
-reportMissingTypeStubs = false
-reportImportCycles = true
+# disabled even in strict
+deprecateTypingAliases = true
+reportImplicitOverride = "warning"
+reportUnnecessaryTypeIgnoreComment = "warning"
 
-reportUnnecessaryTypeIgnoreComment = "information"
+# prefer "# pyright: ignore[ruleName]" over "# type: ignore"
+enableTypeIgnoreComments = false
+
+# downgrade a few common non-issues
+reportUnusedImport = "warning"
+reportMatchNotExhaustive = "warning"
+reportUnnecessaryCast = "warning"
 reportUnnecessaryIsInstance = "information"
 
-reportMatchNotExhaustive = "warning"
-reportOverlappingOverload = "information"
+reportImportCycles = false

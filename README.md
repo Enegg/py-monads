@@ -1,12 +1,11 @@
 # monads
 
-A small package providing python-flavored `Option[T]` and `Result[T, E]` types. Fully statically typed.
+Python-flavored `Option[T]` and `Result[T, E]` types. Fully statically typed.
 
 # features
 
 ### `monads.option`:
 - `Option[T]` = `Some[T]` | `Null`
-- `Null` is an Enum with a single member, `null`
 - support for `match` statement:
   ```py
   match option:
