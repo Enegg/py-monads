@@ -30,7 +30,8 @@ __all__ = ("Null", "Option", "Some")
 
 type Option[T] = Some[T] | Null[T]
 T = TypeVar("T", covariant=True)
-# for some reason pyright infers invariance for Some[T], so lets force it
+# a bug in pyright infers invariance in dataclass-likes (likely due to __replace__),
+# lets force covariance
 
 
 @final

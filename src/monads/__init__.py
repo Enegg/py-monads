@@ -3,4 +3,4 @@
 Copyright (c) 2024-present Eneg
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
