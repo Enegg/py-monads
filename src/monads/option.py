@@ -145,10 +145,10 @@ class Null[T = Never]:
     def unwrap_or_else[U](self, f: Factory[U], /) -> U:
         return f()
 
-    def map[E](self, f: abc.Callable[[T], E], /) -> "Null[E]":
+    def map[U](self, f: abc.Callable[[T], U], /) -> "Null[U]":
         return Null.null
 
-    def map_into[E](self, f: abc.Callable[[T], Option[E]], /) -> "Null[E]":
+    def map_into[U](self, f: abc.Callable[[T], Option[U]], /) -> "Null[U]":
         return Null.null
 
     def map_or[D](self, f: abc.Callable[[T], object], /, default: D) -> D:
@@ -170,12 +170,7 @@ class Null[T = Never]:
 
         return Err(err())
 
-    @overload
-    def xor[U](self, other: "Null[U]", /) -> "Null[U]": ...
-    @overload
-    def xor[U](self, other: Some[U], /) -> Some[U]: ...
-
-    def xor[U](self, other: Option[U], /) -> Option[U]:
+        def xor[O: Option[Any]](self, other: O, /) -> O:
         return other
 
     def flatten[U](self: "Null[Option[U]]") -> "Null[U]":

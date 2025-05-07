@@ -41,7 +41,7 @@ class Ok(Generic[OkT, OkE]):
 
         return Some(self.ok_value)
 
-    def err(self) -> "Null[OkT]":
+    def err(self) -> "Null[OkE]":
         from monads.option import Null
 
         return Null.null
@@ -101,7 +101,7 @@ class Err(Generic[ErrE, ErrT]):
     def is_err_and(self, f: Predicate[ErrE], /) -> bool:
         return f(self.err_value)
 
-    def ok(self) -> "Null[ErrE]":
+    def ok(self) -> "Null[ErrT]":
         from monads.option import Null
 
         return Null.null
