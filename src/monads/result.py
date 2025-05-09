@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Final, Generic, Literal, Never, Self, TypeVar,
 
 import attrs
 
-from monads._types import Factory, Predicate
+from monads._types import Factory, Predicate, SupportsGe, SupportsGt, SupportsLe, SupportsLt
 from monads.exceptions import UnwrapError
 
 if TYPE_CHECKING:
@@ -17,18 +17,22 @@ if TYPE_CHECKING:
 __all__ = ("Err", "Ok", "Result")
 
 type Result[T, E] = Ok[T, E] | Err[E, T]
+# TODO: microsoft/pyright#10367
+# pyright infers invariance for 3.12 TypeVars in dataclass-likes;
+# using old syntax to force covariance
 OkT = TypeVar("OkT", covariant=True)
 OkE = TypeVar("OkE", covariant=True, default=Never)
 ErrE = TypeVar("ErrE", covariant=True)
 ErrT = TypeVar("ErrT", covariant=True, default=Never)
-# a bug in pyright infers invariance in dataclass-likes (likely due to __replace__),
-# lets force covariance
 
 
 @final
 @attrs.frozen
 class Ok(Generic[OkT, OkE]):
     ok_value: Final[OkT] = attrs.field()
+
+    if TYPE_CHECKING:
+        def __init__(self, value: OkT, /) -> None: ...
 
     def is_ok_and(self, f: Predicate[OkT], /) -> bool:
         return f(self.ok_value)
@@ -89,11 +93,26 @@ class Ok(Generic[OkT, OkE]):
     def __bool__(self) -> Literal[True]:
         return True
 
+    def __gt__[U, F](self: "Ok[SupportsGt[U], SupportsGt[F]]", other: Result[U, F], /) -> bool:
+        return self.ok_value > other.ok_value if other else False
+
+    def __ge__[U, F](self: "Ok[SupportsGe[U], SupportsGe[F]]", other: Result[U, F], /) -> bool:
+        return self.ok_value >= other.ok_value if other else False
+
+    def __lt__[U, F](self: "Ok[SupportsLt[U], SupportsLt[F]]", other: Result[U, F], /) -> bool:
+        return self.ok_value < other.ok_value if other else True
+
+    def __le__[U, F](self: "Ok[SupportsLe[U], SupportsLe[F]]", other: Result[U, F], /) -> bool:
+        return self.ok_value <= other.ok_value if other else True
+
 
 @final
 @attrs.frozen
 class Err(Generic[ErrE, ErrT]):
     err_value: Final[ErrE] = attrs.field()
+
+    if TYPE_CHECKING:
+        def __init__(self, value: ErrE, /) -> None: ...
 
     def is_ok_and(self, f: Predicate[ErrT], /) -> Literal[False]:
         return False
@@ -155,45 +174,14 @@ class Err(Generic[ErrE, ErrT]):
     def __bool__(self) -> Literal[False]:
         return False
 
+    def __gt__[U, F](self: "Err[SupportsGt[F], SupportsGt[U]]", other: Result[U, F], /) -> bool:
+        return True if other else self.err_value > other.err_value
 
-if False:
-    from typing import Protocol
+    def __ge__[U, F](self: "Err[SupportsGe[F], SupportsGe[U]]", other: Result[U, F], /) -> bool:
+        return True if other else self.err_value >= other.err_value
 
-    from monads.option import Option
+    def __lt__[U, F](self: "Err[SupportsLt[F], SupportsLt[U]]", other: Result[U, F], /) -> bool:
+        return False if other else self.err_value < other.err_value
 
-    def assert_assignable() -> None:
-        class _Result[T, E](Protocol):
-            # r.is_ok() => r
-            # r.is_err() => not r
-            # r1.or(r2) => r1 or r2
-            # r.or_else(f) => r or f(r.value)
-            # r1.and(r2) => r1 and r2
-            # r.and_then(f) => r.map_into(f)
-
-            def is_ok_and(self, f: Predicate[T], /) -> bool: ...
-            def is_err_and(self, f: Predicate[E], /) -> bool: ...
-            def ok(self) -> Option[T]: ...
-            def err(self) -> Option[E]: ...
-            def map[U](self, f: abc.Callable[[T], U], /) -> Result[U, E]: ...
-            def map_into[U, F](
-                self, f: abc.Callable[[T], Result[U, F]], /
-            ) -> Result[U, E] | Result[U, F]: ...
-            def map_or[U, D](self, f: abc.Callable[[T], U], /, default: D) -> U | D: ...
-            def map_or_else[U, D](
-                self, f: abc.Callable[[T], U], /, default: Factory[D]
-            ) -> U | D: ...
-            def map_err[F](self, f: abc.Callable[[E], F], /) -> Result[T, F]: ...
-            def map_err_into[U, F](
-                self, f: abc.Callable[[E], Result[U, F]], /
-            ) -> Result[T, F] | Result[U, F]: ...
-            def inspect(self, f: abc.Callable[[T], object], /) -> Self: ...
-            def inspect_err(self, f: abc.Callable[[E], object], /) -> Self: ...
-            def unwrap(self, msg: str = ...) -> T: ...
-            def unwrap_err(self, msg: str = ...) -> E: ...
-            def unwrap_or[D](self, default: D, /) -> T | D: ...
-            def unwrap_or_else[D](self, f: Factory[D], /) -> T | D: ...
-            def __iter__(self) -> abc.Iterator[T]: ...
-            def __bool__(self) -> bool: ...
-
-        _1: _Result[object, Exception] = Ok[int, Exception](123)
-        _2: _Result[object, Exception] = Err(RuntimeError())
+    def __le__[U, F](self: "Err[SupportsLe[F], SupportsLe[U]]", other: Result[U, F], /) -> bool:
+        return False if other else self.err_value <= other.err_value

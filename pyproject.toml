@@ -16,6 +16,11 @@ license = {file = "LICENSE"}
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
+
 
 [tool.pdm]
 distribution = true
@@ -48,7 +53,9 @@ ignore = [
     "C9",        # complexity
     "D1",        # missing docstrings
     "FIX", "TD", # todos
+    "N806",      # non-lowercase function variables
     "N818",      # naming exceptions as *Error
+    "S101",      # asserts are good
     "SLF001",    # private member access; handled by pyright
     "PYI041",    # redundant int | float unions
     "INP001",
@@ -72,6 +79,14 @@ allow-dunder-method-names = [
     "__attrs_init__",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "ERA001",  # commented out code
+    "FBT001",  # positional bool params
+    "PLR0124", # x == x
+    "PLR091",  # too many ...
+]
+
 
 [tool.pyright]
 typeCheckingMode = "strict"
@@ -91,4 +106,11 @@ reportMatchNotExhaustive = "warning"
 reportUnnecessaryCast = "warning"
 reportUnnecessaryIsInstance = "information"
 
+# explicit cycles due to Option.[ok_or,ok_or_else] / Result.[ok,err]
 reportImportCycles = false
+
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]

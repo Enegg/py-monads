@@ -29,9 +29,10 @@ if TYPE_CHECKING:
 __all__ = ("Null", "Option", "Some")
 
 type Option[T] = Some[T] | Null[T]
+# TODO: microsoft/pyright#10367
+# pyright infers invariance for 3.12 TypeVars in dataclass-likes;
+# using old syntax to force covariance
 T = TypeVar("T", covariant=True)
-# a bug in pyright infers invariance in dataclass-likes (likely due to __replace__),
-# lets force covariance
 
 
 @final
@@ -40,6 +41,9 @@ class Some(Generic[T]):
     """Option variant with some value of type `T`."""
 
     value: Final[T] = attrs.field()
+
+    if TYPE_CHECKING:
+        def __init__(self, value: T, /) -> None: ...
 
     def is_some_and(self, f: Predicate[T], /) -> bool:
         return f(self.value)
@@ -170,7 +174,7 @@ class Null[T = Never]:
 
         return Err(err())
 
-        def xor[O: Option[Any]](self, other: O, /) -> O:
+    def xor[O: Option[Any]](self, other: O, /) -> O:
         return other
 
     def flatten[U](self: "Null[Option[U]]") -> "Null[U]":
@@ -197,40 +201,3 @@ class Null[T = Never]:
 
 
 Null.null = object.__new__(Null)  # pyright: ignore[reportAttributeAccessIssue]
-
-if False:
-    from typing import Protocol
-
-    from monads.result import Result
-
-    def assert_assignable() -> None:
-        class _Option[T](Protocol):
-            # o.is_some() => o
-            # o.is_null() => not o
-            # o1.or(o2) => o1 or o2
-            # o.or_else(f) => o or f()
-            # o1.and(o2) => o1 and o2
-            # o.and_then(f) => o.map_into(f)
-
-            def is_some_and(self, f: Predicate[T], /) -> bool: ...
-            def is_null_or(self, f: Predicate[T], /) -> bool: ...
-            def unwrap(self, msg: str = ...) -> T: ...
-            def unwrap_or[D](self, default: D, /) -> T | D: ...
-            def unwrap_or_else[D](self, f: Factory[D], /) -> T | D: ...
-            def map[U](self, f: abc.Callable[[T], U], /) -> Option[U]: ...
-            def map_into[U](self, f: abc.Callable[[T], Option[U]], /) -> Option[U]: ...
-            def map_or[U, D](self, f: abc.Callable[[T], U], /, default: D) -> U | D: ...
-            def map_or_else[U, D](
-                self, f: abc.Callable[[T], U], /, default: Factory[D]
-            ) -> U | D: ...
-            def inspect(self, f: abc.Callable[[T], object], /) -> Self: ...
-            def ok_or[E](self, err: E, /) -> Result[T, E]: ...
-            def ok_or_else[E](self, err: Factory[E], /) -> Result[T, E]: ...
-            def xor[U](self, other: Option[U], /) -> Option[T] | Option[U]: ...
-            def flatten(self: Option[Option[T]]) -> Option[T]: ...
-            def __iter__(self) -> abc.Iterator[T]: ...
-            def __bool__(self) -> bool: ...
-
-        # xor fails to assign. Too bad!
-        _1: _Option[object] = Some(object)
-        _2: _Option[object] = Null.null

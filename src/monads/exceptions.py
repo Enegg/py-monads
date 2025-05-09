@@ -4,4 +4,5 @@ Copyright (c) 2024-present Eneg
 """
 
 
-class UnwrapError(Exception): ...
+class UnwrapError(Exception):
+    """Unwrap operation on a missing value."""

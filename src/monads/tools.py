@@ -4,14 +4,21 @@ Copyright (c) 2024-present Eneg
 """
 
 from collections import abc
-from typing import Any, Protocol, Self, overload
+from typing import Never, Protocol, Self, overload
 
 import attrs
 
 from monads.option import Null, Option, Some
 from monads.result import Err, Ok, Result
 
-__all__ = ("CatchResult", "from_none", "try_option", "try_result")
+__all__ = (
+    "CatchResult",
+    "collect_options",
+    "collect_results",
+    "from_none",
+    "try_option",
+    "try_result",
+)
 
 
 class HasResult[T, E](Protocol):
@@ -26,15 +33,13 @@ class _Success[T]:
 
 @attrs.define
 class CatchResult[ExcT: BaseException]:
-    """Context manager catching exceptions into Result type.
-
-    ### Usage:
+    """Context manager catching exceptions into `Result` type.
 
     ```
     with CatchResult(ValueError) as catch:
-        catch @= int("12345")
+        catch @= int("123")
 
-    reveal_type(catch.result)  # Result[int, ValueError]
+    print(catch.result)  # Ok(123) | Err(ValueError(...))
     ```
     """
 
@@ -59,7 +64,7 @@ class CatchResult[ExcT: BaseException]:
         return _Success(Ok(value))
 
     @property
-    def result(self) -> Err[Any, ExcT]:
+    def result(self) -> Err[ExcT, Never]:
         return self._result.map(Err).unwrap("No exception caught and @= not called")
 
 
@@ -96,7 +101,64 @@ def try_option[**P, T](
 @overload
 def from_none(obj: None, /) -> Null: ...
 @overload
+# ideally this'd be [T: object & ~None] -> Some[T]
 def from_none[T](obj: T | None, /) -> Option[T]: ...
 def from_none[T](obj: T | None, /) -> Option[T]:
     """Turn `T | None` into `Option[T]`."""
     return Null.null if obj is None else Some(obj)
+
+
+def collect_options[T](it: abc.Iterable[Option[T]], /) -> Option[list[T]]:
+    """Collect an iterable of `Option`s into a `list` of contained values.
+
+    ```
+    options = [Some(2), Some(4), Null.null, Some(8)]
+    values = collect_options(options)
+    assert values is Null.null
+
+    options = [Some(2), Some(4), Some(8)]
+    values = collect_options(options)
+    assert values == Some([1, 2, 3])
+    ```
+
+    Returns
+    -------
+        `Some[list[T]]` if none of the elements is `Null`, else `Null`.
+    """
+    values: list[T] = []
+
+    for o in it:
+        if not o:
+            return Null.null
+
+        values.append(o.value)
+
+    return Some(values)
+
+
+def collect_results[T, E](it: abc.Iterable[Result[T, E]], /) -> Result[list[T], E]:
+    """Collect an iterable of `Result`s into a `list` of contained values.
+
+    ```
+    results = [Ok(2), Ok(4), Err("no"), Ok(8), Err("yes")]
+    values = collect_results(results)
+    assert values == Err("no")
+
+    results = [Ok(2), Ok(4), Ok(8)]
+    values = collect_results(results)
+    assert values == Ok([1, 2, 3])
+    ```
+
+    Returns
+    -------
+        `Ok[list[T]]` if none of the elements is `Err`, else the first `Err[E]`.
+    """
+    values: list[T] = []
+
+    for r in it:
+        if not r:
+            return Err(r.err_value)
+
+        values.append(r.ok_value)
+
+    return Ok(values)
